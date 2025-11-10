@@ -1,12 +1,19 @@
 /***************************************************************************
  *
- * Sequential version of Gaussian elimination
+ * Parallel version of Gaussian elimination
  *
  ***************************************************************************/
 
+// ssh jane.lab.bth.se -l edro22
+// make gauss
+// ./gauss_parallel
+// ./benchmark.sh ./gauss_sequential ./gauss_parallel
+
 #include <stdio.h>
+#include <pthread.h>
 
 #define MAX_SIZE 4096
+#define THREADS 16
 
 typedef double matrix[MAX_SIZE][MAX_SIZE];
 
@@ -17,8 +24,10 @@ int PRINT;			/* print switch		*/
 matrix A;			/* matrix A		*/
 double b[MAX_SIZE]; /* vector b             */
 double y[MAX_SIZE]; /* vector y             */
+pthread_t threads[THREADS];
 
 /* forward declarations */
+void *thread_worker(void *);
 void work(void);
 void Init_Matrix(void);
 void Print_Matrix(void);
@@ -37,11 +46,12 @@ int main(int argc, char **argv)
 		Print_Matrix();
 }
 
-void work(void)
+void *thread_worker(void *arg)
 {
+	int tid = (int)arg;
+	
 	int i, j, k;
 
-	/* Gaussian elimination algorithm, Algo 8.4 from Grama */
 	for (k = 0; k < N; k++)
 	{ /* Outer loop */
 		for (j = k + 1; j < N; j++)
@@ -49,7 +59,7 @@ void work(void)
 
 		y[k] = b[k] / A[k][k];
 		A[k][k] = 1.0;
-		
+
 		for (i = k + 1; i < N; i++)
 		{
 			for (j = k + 1; j < N; j++)
@@ -58,6 +68,25 @@ void work(void)
 			b[i] = b[i] - A[i][k] * y[k];
 			A[i][k] = 0.0;
 		}
+	}
+
+    return NULL;
+}
+
+void work(void)
+{
+	
+
+	// Create threads
+	for (int i = 0; i < THREADS; ++i)
+	{
+		pthread_create(threads[i], NULL, thread_worker, (void*)i);
+	}
+
+	// Join threads
+	for (int i = 0; i < THREADS; ++i)
+	{
+		pthread_join(threads[i], NULL);
 	}
 }
 
@@ -146,7 +175,9 @@ int Read_Options(int argc, char **argv)
 
 	prog = *argv;
 	while (++argv, --argc > 0)
+	{
 		if (**argv == '-')
+		{
 			switch (*++*argv)
 			{
 			case 'n':
@@ -190,4 +221,6 @@ int Read_Options(int argc, char **argv)
 				printf("HELP: try %s -u \n\n", prog);
 				break;
 			}
+		}
+	}
 }
