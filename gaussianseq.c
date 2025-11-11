@@ -59,22 +59,11 @@ void work(void)
 	/* Gaussian elimination algorithm, Algo 8.4 from Grama */
 	for (k = 0; k < N; k++)
 	{ /* Outer loop */
-
-		if (PRINT == 1)
-		{
-			printf("k=%d \n", k);
-		}
 		for (j = k + 1; j < N; j++)
 			A[k][j] = A[k][j] / A[k][k]; /* Division step */
 
 		y[k] = b[k] / A[k][k];
 		A[k][k] = 1.0;
-
-		if (PRINT == 1)
-		{
-			printf("During\n");
-			Print_Matrix();
-		}
 		
 		for (i = k + 1; i < N; i++)
 		{
@@ -83,12 +72,6 @@ void work(void)
 
 			b[i] = b[i] - A[i][k] * y[k];
 			A[i][k] = 0.0;
-		}
-
-		if (PRINT == 1)
-		{
-			printf("After\n");
-			Print_Matrix();
 		}
 	}
 }

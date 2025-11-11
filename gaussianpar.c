@@ -28,8 +28,7 @@ double y[MAX_SIZE]; /* vector y             */
 
 
 pthread_t threads[THREADS];
-pthread_barrier_t barrier1;
-pthread_barrier_t barrier2;
+pthread_barrier_t barrier;
 
 /* forward declarations */
 void *thread_worker(void *);
@@ -72,13 +71,13 @@ void *thread_worker(void *arg)
 		for (j = k + 1 + tid; j < N; j += THREADS)
 			A[k][j] = A[k][j] / A[k][k]; /* Division step */
 
-		pthread_barrier_wait(&barrier1);
-		y[k] = b[k] / A[k][k];
+		if (tid == 0)
+			y[k] = b[k] / A[k][k];
+
+		pthread_barrier_wait(&barrier);
 
 		if (tid == 0)
-		{
 			A[k][k] = 1.0;
-		}
 
 		for (i = k + 1 + tid; i < N; i += THREADS)
 		{
@@ -89,7 +88,7 @@ void *thread_worker(void *arg)
 			A[i][k] = 0.0;
 		}
 
-		pthread_barrier_wait(&barrier2);
+		pthread_barrier_wait(&barrier);
 	}
 
     return NULL;
@@ -97,9 +96,8 @@ void *thread_worker(void *arg)
 
 void work(void)
 {
-	// Initialize barriers
-	pthread_barrier_init(&barrier1, NULL, THREADS);
-	pthread_barrier_init(&barrier2, NULL, THREADS);
+	// Initialize barrier
+	pthread_barrier_init(&barrier, NULL, THREADS);
 
 	// Create threads
 	for (int i = 0; i < THREADS; ++i)
@@ -113,9 +111,8 @@ void work(void)
 		pthread_join(threads[i], NULL);
 	}
 
-	// Destroy barriers
-	pthread_barrier_destroy(&barrier1);
-	pthread_barrier_destroy(&barrier2);
+	// Destroy barrier
+	pthread_barrier_destroy(&barrier);
 }
 
 void Init_Matrix()
