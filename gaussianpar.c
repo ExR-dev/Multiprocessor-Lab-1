@@ -4,12 +4,13 @@
  *
  ***************************************************************************/
 
-// ssh jane.lab.bth.se -l edro22
-// make gauss
-// ./gauss_parallel
-// ./benchmark.sh ./gauss_sequential ./gauss_parallel
+#define _XOPEN_SOURCE 600
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <unistd.h>
 #include <pthread.h>
 
 #define MAX_SIZE 4096
@@ -24,7 +25,11 @@ int PRINT;			/* print switch		*/
 matrix A;			/* matrix A		*/
 double b[MAX_SIZE]; /* vector b             */
 double y[MAX_SIZE]; /* vector y             */
+
+
 pthread_t threads[THREADS];
+pthread_barrier_t barrier1;
+pthread_barrier_t barrier2;
 
 /* forward declarations */
 void *thread_worker(void *);
@@ -37,30 +42,45 @@ int Read_Options(int, char **);
 int main(int argc, char **argv)
 {
 	int i, timestart, timeend, iter;
+    long sec_elapsed, msec_elapsed;
+	struct timeval start, stop;
 
 	Init_Default();			  /* Init default values	*/
 	Read_Options(argc, argv); /* Read arguments	*/
 	Init_Matrix();			  /* Init the matrix	*/
+
+    gettimeofday(&start, NULL);
 	work();
+    gettimeofday(&stop, NULL);
+
+    sec_elapsed = (stop.tv_sec - start.tv_sec);
+    msec_elapsed = ((sec_elapsed*1000000) + stop.tv_usec) - (start.tv_usec);
+
 	if (PRINT == 1)
 		Print_Matrix();
+
+	printf("Time taken: %ld ms\n", msec_elapsed / 1000);
 }
 
 void *thread_worker(void *arg)
 {
-	int tid = (int)arg;
-	
+	int tid = (long long)arg;
 	int i, j, k;
 
 	for (k = 0; k < N; k++)
 	{ /* Outer loop */
-		for (j = k + 1; j < N; j++)
+		for (j = k + 1 + tid; j < N; j += THREADS)
 			A[k][j] = A[k][j] / A[k][k]; /* Division step */
 
+		pthread_barrier_wait(&barrier1);
 		y[k] = b[k] / A[k][k];
-		A[k][k] = 1.0;
 
-		for (i = k + 1; i < N; i++)
+		if (tid == 0)
+		{
+			A[k][k] = 1.0;
+		}
+
+		for (i = k + 1 + tid; i < N; i += THREADS)
 		{
 			for (j = k + 1; j < N; j++)
 				A[i][j] = A[i][j] - A[i][k] * A[k][j]; /* Elimination step */
@@ -68,6 +88,8 @@ void *thread_worker(void *arg)
 			b[i] = b[i] - A[i][k] * y[k];
 			A[i][k] = 0.0;
 		}
+
+		pthread_barrier_wait(&barrier2);
 	}
 
     return NULL;
@@ -75,12 +97,14 @@ void *thread_worker(void *arg)
 
 void work(void)
 {
-	
+	// Initialize barriers
+	pthread_barrier_init(&barrier1, NULL, THREADS);
+	pthread_barrier_init(&barrier2, NULL, THREADS);
 
 	// Create threads
 	for (int i = 0; i < THREADS; ++i)
 	{
-		pthread_create(threads[i], NULL, thread_worker, (void*)i);
+		pthread_create(&threads[i], NULL, thread_worker, (void *)(long long)i);
 	}
 
 	// Join threads
@@ -88,6 +112,10 @@ void work(void)
 	{
 		pthread_join(threads[i], NULL);
 	}
+
+	// Destroy barriers
+	pthread_barrier_destroy(&barrier1);
+	pthread_barrier_destroy(&barrier2);
 }
 
 void Init_Matrix()

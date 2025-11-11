@@ -5,6 +5,10 @@
  ***************************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #define MAX_SIZE 4096
 
@@ -28,13 +32,24 @@ int Read_Options(int, char **);
 int main(int argc, char **argv)
 {
 	int i, timestart, timeend, iter;
+    long sec_elapsed, msec_elapsed;
+	struct timeval start, stop;
 
 	Init_Default();			  /* Init default values	*/
 	Read_Options(argc, argv); /* Read arguments	*/
 	Init_Matrix();			  /* Init the matrix	*/
+
+    gettimeofday(&start, NULL);
 	work();
+    gettimeofday(&stop, NULL);
+
+    sec_elapsed = (stop.tv_sec - start.tv_sec);
+    msec_elapsed = ((sec_elapsed*1000000) + stop.tv_usec) - (start.tv_usec);
+
 	if (PRINT == 1)
 		Print_Matrix();
+
+	printf("Time taken: %ld ms\n", msec_elapsed / 1000);
 }
 
 void work(void)
@@ -44,11 +59,22 @@ void work(void)
 	/* Gaussian elimination algorithm, Algo 8.4 from Grama */
 	for (k = 0; k < N; k++)
 	{ /* Outer loop */
+
+		if (PRINT == 1)
+		{
+			printf("k=%d \n", k);
+		}
 		for (j = k + 1; j < N; j++)
 			A[k][j] = A[k][j] / A[k][k]; /* Division step */
 
 		y[k] = b[k] / A[k][k];
 		A[k][k] = 1.0;
+
+		if (PRINT == 1)
+		{
+			printf("During\n");
+			Print_Matrix();
+		}
 		
 		for (i = k + 1; i < N; i++)
 		{
@@ -57,6 +83,12 @@ void work(void)
 
 			b[i] = b[i] - A[i][k] * y[k];
 			A[i][k] = 0.0;
+		}
+
+		if (PRINT == 1)
+		{
+			printf("After\n");
+			Print_Matrix();
 		}
 	}
 }
