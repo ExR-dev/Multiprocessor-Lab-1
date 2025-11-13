@@ -14,7 +14,6 @@
 #include <pthread.h>
 
 #define MAX_SIZE 4096
-#define THREADS 16
 
 typedef double matrix[MAX_SIZE][MAX_SIZE];
 
@@ -26,8 +25,7 @@ matrix A;			/* matrix A		*/
 double b[MAX_SIZE]; /* vector b             */
 double y[MAX_SIZE]; /* vector y             */
 
-
-pthread_t threads[THREADS];
+int T;				/* thread count		*/
 pthread_barrier_t barrier;
 
 /* forward declarations */
@@ -68,7 +66,7 @@ void *thread_worker(void *arg)
 
 	for (k = 0; k < N; k++)
 	{ /* Outer loop */
-		for (j = k + 1 + tid; j < N; j += THREADS)
+		for (j = k + 1 + tid; j < N; j += T)
 			A[k][j] = A[k][j] / A[k][k]; /* Division step */
 
 		if (tid == 0)
@@ -79,7 +77,7 @@ void *thread_worker(void *arg)
 		if (tid == 0)
 			A[k][k] = 1.0;
 
-		for (i = k + 1 + tid; i < N; i += THREADS)
+		for (i = k + 1 + tid; i < N; i += T)
 		{
 			for (j = k + 1; j < N; j++)
 				A[i][j] = A[i][j] - A[i][k] * A[k][j]; /* Elimination step */
@@ -96,20 +94,28 @@ void *thread_worker(void *arg)
 
 void work(void)
 {
+	printf("threads   = %d \n\n", T);
+
+	pthread_t *threads = malloc(sizeof(pthread_t *) * (T - 1));
+
 	// Initialize barrier
-	pthread_barrier_init(&barrier, NULL, THREADS);
+	pthread_barrier_init(&barrier, NULL, T);
 
 	// Create threads
-	for (int i = 0; i < THREADS; ++i)
+	for (int i = 0; i < T - 1; ++i)
 	{
-		pthread_create(&threads[i], NULL, thread_worker, (void *)(long long)i);
+		pthread_create(&threads[i], NULL, thread_worker, (void *)(long long)(i + 1));
 	}
 
+	thread_worker((void *)0ll);
+
 	// Join threads
-	for (int i = 0; i < THREADS; ++i)
+	for (int i = 0; i < T - 1; ++i)
 	{
 		pthread_join(threads[i], NULL);
 	}
+
+	free(threads);
 
 	// Destroy barrier
 	pthread_barrier_destroy(&barrier);
@@ -189,6 +195,7 @@ void Print_Matrix()
 void Init_Default()
 {
 	N = 2048;
+	T = 4;
 	Init = "rand";
 	maxnum = 15.0;
 	PRINT = 0;
@@ -209,6 +216,10 @@ int Read_Options(int argc, char **argv)
 				--argc;
 				N = atoi(*++argv);
 				break;
+			case 't':
+				--argc;
+				T = atoi(*++argv);
+				break;
 			case 'h':
 				printf("\nHELP: try sor -u \n\n");
 				exit(0);
@@ -224,6 +235,7 @@ int Read_Options(int argc, char **argv)
 				break;
 			case 'D':
 				printf("\nDefault:  n         = %d ", N);
+				printf("\n          t      	  = %d", T);
 				printf("\n          Init      = rand");
 				printf("\n          maxnum    = 5 ");
 				printf("\n          P         = 0 \n\n");
