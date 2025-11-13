@@ -50,3 +50,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+gauss_sequential
+gauss_parallel
+qsort_sequential
+qsort_parallel

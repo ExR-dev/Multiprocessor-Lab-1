@@ -4,6 +4,8 @@
  *
  ***************************************************************************/
 
+// ssh jane.lab.bth.se -l edro22
+
 #define _XOPEN_SOURCE 600
 
 #include <stdio.h>
